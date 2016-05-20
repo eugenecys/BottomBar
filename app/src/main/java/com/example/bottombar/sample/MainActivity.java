@@ -22,6 +22,7 @@ public class MainActivity extends AppCompatActivity {
         mMessageView = (TextView) findViewById(R.id.messageView);
 
         mBottomBar = BottomBar.attach(this, savedInstanceState);
+        mBottomBar.useDarkTheme();
         mBottomBar.setItemsFromMenu(R.menu.bottombar_menu, new OnMenuTabClickListener() {
             @Override
             public void onMenuTabSelected(@IdRes int menuItemId) {
@@ -33,14 +34,6 @@ public class MainActivity extends AppCompatActivity {
                 Toast.makeText(getApplicationContext(), getMessage(menuItemId, true), Toast.LENGTH_SHORT).show();
             }
         });
-
-        // Setting colors for different tabs when there's more than three of them.
-        // You can set colors for tabs in three different ways as shown below.
-        mBottomBar.mapColorForTab(0, ContextCompat.getColor(this, R.color.colorAccent));
-        mBottomBar.mapColorForTab(1, 0xFF5D4037);
-        mBottomBar.mapColorForTab(2, "#7B1FA2");
-        mBottomBar.mapColorForTab(3, "#FF5252");
-        mBottomBar.mapColorForTab(4, "#FF9800");
     }
 
     private String getMessage(int menuItemId, boolean isReselection) {

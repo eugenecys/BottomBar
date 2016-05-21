@@ -63,7 +63,7 @@ public class BottomBar extends FrameLayout implements View.OnClickListener, View
 
     private Context mContext;
     private boolean mIsComingFromRestoredState;
-    //private boolean mIgnoreTabletLayout;
+    private boolean mIgnoreTabletLayout;
     private boolean mIsTabletMode;
     private boolean mIsShy;
     private boolean mShyHeightAlreadyCalculated;
@@ -88,9 +88,6 @@ public class BottomBar extends FrameLayout implements View.OnClickListener, View
     private int mTwoDp;
     private int mTenDp;
     private int mMaxFixedItemWidth;
-    //private int mMaxInActiveShiftingItemWidth;
-    //private int mInActiveShiftingItemWidth;
-    //private int mActiveShiftingItemWidth;
 
     private Object mListener;
     private Object mMenuListener;
@@ -102,7 +99,6 @@ public class BottomBar extends FrameLayout implements View.OnClickListener, View
     private int mFragmentContainer;
 
     private BottomBarItemBase[] mItems;
-    private HashMap<Integer, Integer> mColorMap;
     private HashMap<Integer, Object> mBadgeMap;
     private HashMap<Integer, Boolean> mBadgeStateMap;
 
@@ -116,7 +112,6 @@ public class BottomBar extends FrameLayout implements View.OnClickListener, View
 
     private boolean mDrawBehindNavBar = true;
     private boolean mUseTopOffset = true;
-    private boolean mUseOnlyStatusBarOffset;
 
     private int mPendingTextAppearance = -1;
     private Typeface mPendingTypeface;
@@ -186,15 +181,6 @@ public class BottomBar extends FrameLayout implements View.OnClickListener, View
     }
 
     /**
-     * Deprecated. Breaks support for tablets.
-     * Use {@link #attachShy(CoordinatorLayout, View, Bundle)} instead.
-     */
-    @Deprecated
-    public static BottomBar attachShy(CoordinatorLayout coordinatorLayout, Bundle savedInstanceState) {
-        return attachShy(coordinatorLayout, null, savedInstanceState);
-    }
-
-    /**
      * Adds the BottomBar inside of your CoordinatorLayout and shows / hides
      * it according to scroll state changes.
      * <p/>
@@ -210,7 +196,7 @@ public class BottomBar extends FrameLayout implements View.OnClickListener, View
     public static BottomBar attachShy(CoordinatorLayout coordinatorLayout, View userContentView, Bundle savedInstanceState) {
         final BottomBar bottomBar = new BottomBar(coordinatorLayout.getContext());
         bottomBar.onRestoreInstanceState(savedInstanceState);
-        bottomBar.toughChildHood(ViewCompat.getFitsSystemWindows(coordinatorLayout));
+        bottomBar.makeBarShy(ViewCompat.getFitsSystemWindows(coordinatorLayout));
 
         if (userContentView != null && coordinatorLayout.getContext()
                 .getResources().getBoolean(R.bool.bb_bottom_bar_is_tablet_mode)) {
@@ -309,17 +295,6 @@ public class BottomBar extends FrameLayout implements View.OnClickListener, View
     }
 
     /**
-     * Deprecated. Use {@link #setItemsFromMenu(int, OnMenuTabClickListener)} instead.
-     */
-    @Deprecated
-    public void setItemsFromMenu(@MenuRes int menuRes, OnMenuTabSelectedListener listener) {
-        clearItems();
-        mItems = MiscUtils.inflateMenuFromResource((Activity) getContext(), menuRes);
-        mMenuListener = listener;
-        updateItems(mItems);
-    }
-
-    /**
      * Set items from an XML menu resource file.
      *
      * @param menuRes  the menu resource to inflate items from.
@@ -335,14 +310,6 @@ public class BottomBar extends FrameLayout implements View.OnClickListener, View
                 && mItems instanceof BottomBarTab[]) {
             listener.onMenuTabSelected(((BottomBarTab) mItems[mCurrentTabPosition]).id);
         }
-    }
-
-    /**
-     * Deprecated. Use {@link #setOnTabClickListener(OnTabClickListener)} instead.
-     */
-    @Deprecated
-    public void setOnItemSelectedListener(OnTabSelectedListener listener) {
-        mListener = listener;
     }
 
     /**
@@ -379,7 +346,6 @@ public class BottomBar extends FrameLayout implements View.OnClickListener, View
         selectTab(newTab, animate);
 
         updateSelectedTab(position);
-        //shiftingMagic(oldTab, newTab, false);
     }
 
     /**
@@ -494,61 +460,6 @@ public class BottomBar extends FrameLayout implements View.OnClickListener, View
                 bottomBarFragment.getSupportFragment().onSaveInstanceState(outState);
             }
         }
-    }
-
-    /**
-     * Map a background color for a Tab, that changes the whole BottomBar
-     * background color when the Tab is selected.
-     *
-     * @param tabPosition zero-based index for the tab.
-     * @param color       a hex color for the tab, such as 0xFF00FF00.
-     */
-
-    /*
-    public void mapColorForTab(int tabPosition, int color) {
-        if (mItems == null || mItems.length == 0) {
-            throw new UnsupportedOperationException("You have no BottomBar Tabs set yet. " +
-                    "Please set them first before calling the mapColorForTab method.");
-        } else if (tabPosition > mItems.length - 1 || tabPosition < 0) {
-            throw new IndexOutOfBoundsException("Cant map color for Tab " +
-                    "index " + tabPosition + ". You have no BottomBar Tabs at that position.");
-        }
-
-        if (mIsDarkTheme || !mIsShiftingMode || mIsTabletMode) return;
-
-        if (mColorMap == null) {
-            mColorMap = new HashMap<>();
-        }
-
-        if (tabPosition == mCurrentTabPosition
-                && mCurrentBackgroundColor != color) {
-            mCurrentBackgroundColor = color;
-            mBackgroundView.setBackgroundColor(color);
-        }
-
-        mColorMap.put(tabPosition, color);
-    }
-    */
-
-    /**
-     * Map a background color for a Tab, that changes the whole BottomBar
-     * background color when the Tab is selected.
-     *
-     * @param tabPosition zero-based index for the tab.
-     * @param color       a hex color for the tab, such as "#00FF000".
-     */
-    /*
-    public void mapColorForTab(int tabPosition, String color) {
-        mapColorForTab(tabPosition, Color.parseColor(color));
-    }
-    */
-    /**
-     * Deprecated. Use {@link #useDarkTheme()} instead.
-     */
-    @Deprecated
-    public void useDarkTheme(boolean darkThemeEnabled) {
-        mIsDarkTheme = darkThemeEnabled;
-        useDarkTheme();
     }
 
     /**
@@ -747,10 +658,10 @@ public class BottomBar extends FrameLayout implements View.OnClickListener, View
      * Prevent the BottomBar drawing behind the Navigation Bar and making
      * it transparent. Must be called before setting items.
      */
-    public void noNavBarGoodness() {
+    public void noNavBar() {
         if (mItems != null) {
             throw new UnsupportedOperationException("This BottomBar already has items! " +
-                    "You must call noNavBarGoodness() before setting the items, preferably " +
+                    "You must call noNavBar() before setting the items, preferably " +
                     "right after attaching it to your layout.");
         }
 
@@ -762,28 +673,17 @@ public class BottomBar extends FrameLayout implements View.OnClickListener, View
      * instead of showing a left menu on tablets.
      */
 
-    /*
-    public void noTabletGoodness() {
+
+    public void forceNoTablet() {
         if (mItems != null) {
             throw new UnsupportedOperationException("This BottomBar already has items! " +
-                    "You must call noTabletGoodness() before setting the items, preferably " +
+                    "You must call forceNoTablet() before setting the items, preferably " +
                     "right after attaching it to your layout.");
         }
 
         mIgnoreTabletLayout = true;
     }
-    */
 
-    /**
-     * Don't resize the tabs when selecting a new one, so every tab is the same0 if you have more than three
-     * tabs. The text still displays the scale animation and the icon moves up, but the badass width animation
-     * is ignored.
-     */
-    /*
-    public void noResizeGoodness() {
-        mIgnoreShiftingResize = true;
-    }
-    */
     /**
      * Get this BottomBar's height (or width), depending if the BottomBar
      * is on the bottom (phones) or the left (tablets) of the screen.
@@ -827,30 +727,6 @@ public class BottomBar extends FrameLayout implements View.OnClickListener, View
         return mOuterContainer;
     }
 
-    /**
-     * Super ugly hacks
-     * ----------------------------/
-     */
-
-    /**
-     * If you get some unwanted extra padding in the top (such as
-     * when using CoordinatorLayout), this fixes it.
-     */
-    public void noTopOffset() {
-        mUseTopOffset = false;
-    }
-
-    /**
-     * If your ActionBar gets inside the status bar for some reason,
-     * this fixes it.
-     */
-    public void useOnlyStatusBarTopOffset() {
-        mUseOnlyStatusBarOffset = true;
-    }
-
-    /**
-     * ------------------------------------------- //
-     */
     public BottomBar(Context context) {
         super(context);
         init(context, null, 0, 0);
@@ -884,10 +760,11 @@ public class BottomBar extends FrameLayout implements View.OnClickListener, View
         mTwoDp = MiscUtils.dpToPixel(mContext, 2);
         mTenDp = MiscUtils.dpToPixel(mContext, 10);
         mMaxFixedItemWidth = MiscUtils.dpToPixel(mContext, 168);
-        //mMaxInActiveShiftingItemWidth = MiscUtils.dpToPixel(mContext, 96);
     }
 
     private void initializeViews() {
+        mIsTabletMode = !mIgnoreTabletLayout &&
+                mContext.getResources().getBoolean(R.bool.bb_bottom_bar_is_tablet_mode);
 
         ViewCompat.setElevation(this, MiscUtils.dpToPixel(mContext, 8));
         View rootView = View.inflate(mContext, mIsTabletMode ?
@@ -951,7 +828,7 @@ public class BottomBar extends FrameLayout implements View.OnClickListener, View
     /**
      * Makes this BottomBar "shy". In other words, it hides on scroll.
      */
-    private void toughChildHood(boolean useExtraOffset) {
+    private void makeBarShy(boolean useExtraOffset) {
         mIsShy = true;
         mUseExtraOffset = useExtraOffset;
     }
@@ -982,10 +859,6 @@ public class BottomBar extends FrameLayout implements View.OnClickListener, View
 
     protected boolean useTopOffset() {
         return mUseTopOffset;
-    }
-
-    protected boolean useOnlyStatusbarOffset() {
-        return mUseOnlyStatusBarOffset;
     }
 
     protected void setBarVisibility(int visibility) {
@@ -1031,34 +904,9 @@ public class BottomBar extends FrameLayout implements View.OnClickListener, View
             unselectTab(oldTab, true);
             selectTab(v, true);
 
-            //shiftingMagic(oldTab, v, true);
         }
         updateSelectedTab(findItemPosition(v));
     }
-
-    /*
-    private void shiftingMagic(View oldTab, View newTab, boolean animate) {
-        if (!mIsTabletMode && mIsShiftingMode && !mIgnoreShiftingResize) {
-            if (oldTab instanceof FrameLayout) {
-                // It's a badge, goddammit!
-                oldTab = ((FrameLayout) oldTab).getChildAt(0);
-            }
-
-            if (newTab instanceof FrameLayout) {
-                // It's a badge, goddammit!
-                newTab = ((FrameLayout) newTab).getChildAt(0);
-            }
-
-            if (animate) {
-                MiscUtils.resizeTab(oldTab, oldTab.getWidth(), mInActiveShiftingItemWidth);
-                MiscUtils.resizeTab(newTab, newTab.getWidth(), mActiveShiftingItemWidth);
-            } else {
-                oldTab.getLayoutParams().width = mInActiveShiftingItemWidth;
-                newTab.getLayoutParams().width = mActiveShiftingItemWidth;
-            }
-        }
-    }
-    */
 
     private void updateSelectedTab(int newPosition) {
         final boolean notifyMenuListener = mMenuListener != null && mItems instanceof BottomBarTab[];
@@ -1253,26 +1101,8 @@ public class BottomBar extends FrameLayout implements View.OnClickListener, View
                     mMaxFixedItemWidth
             );
 
-            //mInActiveShiftingItemWidth = (int) (proposedItemWidth * 0.9);
-            //mActiveShiftingItemWidth = (int) (proposedItemWidth + (proposedItemWidth * (bottomBarItems.length * 0.1)));
-
             for (View bottomBarView : viewsToAdd) {
                 LinearLayout.LayoutParams params;
-
-                /*
-                if (mIsShiftingMode && !mIgnoreShiftingResize) {
-                    if (TAG_BOTTOM_BAR_VIEW_ACTIVE.equals(bottomBarView.getTag())) {
-                        params = new LinearLayout.LayoutParams(mActiveShiftingItemWidth,
-                                LinearLayout.LayoutParams.WRAP_CONTENT);
-                    } else {
-                        params = new LinearLayout.LayoutParams(mInActiveShiftingItemWidth,
-                                LinearLayout.LayoutParams.WRAP_CONTENT);
-                    }
-                } else {
-                    params = new LinearLayout.LayoutParams(proposedItemWidth,
-                            LinearLayout.LayoutParams.WRAP_CONTENT);
-                }
-                */
 
                 params = new LinearLayout.LayoutParams(proposedItemWidth,
                         LinearLayout.LayoutParams.WRAP_CONTENT);
@@ -1371,7 +1201,6 @@ public class BottomBar extends FrameLayout implements View.OnClickListener, View
                         .start();
             }
 
-            handleBackgroundColorChange(tabPosition, tab);
         } else {
             ViewCompat.setScaleX(title, 1);
             ViewCompat.setScaleY(title, 1);
@@ -1442,17 +1271,6 @@ public class BottomBar extends FrameLayout implements View.OnClickListener, View
                 ViewCompat.setAlpha(icon, 0.6f);
                 ViewCompat.setAlpha(title, 0);
             }
-        }
-    }
-
-    private void handleBackgroundColorChange(int tabPosition, View tab) {
-        if (mIsDarkTheme || !mIsShiftingMode || mIsTabletMode) return;
-
-        if (mColorMap != null && mColorMap.containsKey(tabPosition)) {
-            handleBackgroundColorChange(
-                    tab, mColorMap.get(tabPosition));
-        } else {
-            handleBackgroundColorChange(tab, mDefaultBackgroundColor);
         }
     }
 
@@ -1592,16 +1410,6 @@ public class BottomBar extends FrameLayout implements View.OnClickListener, View
                     offset = res.getDimensionPixelSize(statusBarResource);
                 } else {
                     offset = MiscUtils.dpToPixel(activity, 25);
-                }
-
-                if (!bottomBar.useOnlyStatusbarOffset()) {
-                    TypedValue tv = new TypedValue();
-                    if (activity.getTheme().resolveAttribute(android.R.attr.actionBarSize, tv, true)) {
-                        offset += TypedValue.complexToDimensionPixelSize(tv.data,
-                                res.getDisplayMetrics());
-                    } else {
-                        offset += MiscUtils.dpToPixel(activity, 56);
-                    }
                 }
 
                 bottomBar.getUserContainer().setPadding(0, offset, 0, 0);
